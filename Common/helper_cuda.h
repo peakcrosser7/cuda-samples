@@ -640,6 +640,11 @@ inline int ftoi(float value) {
 }
 
 // Beginning of GPU Architecture definitions
+
+/// @brief 获取SM版本对应的核心数
+/// @param major 主版本
+/// @param minor 副版本
+/// @return 每个SM的核心数
 inline int _ConvertSMVer2Cores(int major, int minor) {
   // Defines for GPU Architecture types (using the SM version to determine
   // the # of cores per SM
@@ -688,6 +693,10 @@ inline int _ConvertSMVer2Cores(int major, int minor) {
   return nGpuArchCoresPerSM[index - 1].Cores;
 }
 
+/// @brief 获取SM版本对应的架构名
+/// @param major 主版本
+/// @param minor 副版本
+/// @return GPU架构名称
 inline const char* _ConvertSMVer2ArchName(int major, int minor) {
   // Defines for GPU Architecture types (using the SM version to determine
   // the GPU Arch name)
@@ -738,9 +747,13 @@ inline const char* _ConvertSMVer2ArchName(int major, int minor) {
   // end of GPU Architecture definitions
 
 #ifdef __CUDA_RUNTIME_H__
-// General GPU Device CUDA Initialization
+/// @brief General GPU Device CUDA Initialization
+///        通用GPU设备CUDA初始化
+/// @param devID GPU设备ID
+/// @return 实际使用的设备ID
 inline int gpuDeviceInit(int devID) {
   int device_count;
+  // 获取GPU设备数
   checkCudaErrors(cudaGetDeviceCount(&device_count));
 
   if (device_count == 0) {
@@ -767,7 +780,9 @@ inline int gpuDeviceInit(int devID) {
   }
 
   int computeMode = -1, major = 0, minor = 0;
+  // 获取CUDA计算模式
   checkCudaErrors(cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, devID));
+  // 获取CUDA算力大小版本
   checkCudaErrors(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, devID));
   checkCudaErrors(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, devID));
   if (computeMode == cudaComputeModeProhibited) {
@@ -782,19 +797,23 @@ inline int gpuDeviceInit(int devID) {
     exit(EXIT_FAILURE);
   }
 
+  // 设置设备ID用于CUDA执行
   checkCudaErrors(cudaSetDevice(devID));
   printf("gpuDeviceInit() CUDA Device [%d]: \"%s\n", devID, _ConvertSMVer2ArchName(major, minor));
 
   return devID;
 }
 
-// This function returns the best GPU (with maximum GFLOPS)
+/// @brief  This function returns the best GPU (with maximum GFLOPS)
+/// @return 性能最好的GPU设备ID
 inline int gpuGetMaxGflopsDeviceId() {
   int current_device = 0, sm_per_multiproc = 0;
+  // 最大性能的GPU ID
   int max_perf_device = 0;
   int device_count = 0;
   int devices_prohibited = 0;
 
+  // 最大性能
   uint64_t max_compute_perf = 0;
   checkCudaErrors(cudaGetDeviceCount(&device_count));
 
@@ -824,7 +843,9 @@ inline int gpuGetMaxGflopsDeviceId() {
             _ConvertSMVer2Cores(major,  minor);
       }
       int multiProcessorCount = 0, clockRate = 0;
+      // GPU的 SM 数
       checkCudaErrors(cudaDeviceGetAttribute(&multiProcessorCount, cudaDevAttrMultiProcessorCount, current_device));
+      // GPU的峰值时钟频率(khz)
       cudaError_t result = cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device);
       if (result != cudaSuccess) {
         // If cudaDevAttrClockRate attribute is not supported we
@@ -838,6 +859,7 @@ inline int gpuGetMaxGflopsDeviceId() {
           exit(EXIT_FAILURE);
         }
       }
+      // GPU计算性能=SM数*SM中核心数*时钟频率
       uint64_t compute_perf = (uint64_t)multiProcessorCount * sm_per_multiproc * clockRate;
 
       if (compute_perf > max_compute_perf) {
@@ -861,7 +883,11 @@ inline int gpuGetMaxGflopsDeviceId() {
   return max_perf_device;
 }
 
-// Initialization code to find the best CUDA Device
+/// @brief Initialization code to find the best CUDA Device
+///        初始化代码并找到最佳CUDA设备
+/// @param argc 命令行参数个数
+/// @param argv 命令行参数列表
+/// @return 使用的GPU设备ID
 inline int findCudaDevice(int argc, const char **argv) {
   int devID = 0;
 
@@ -882,7 +908,7 @@ inline int findCudaDevice(int argc, const char **argv) {
     }
   } else {
     // Otherwise pick the device with highest Gflops/s
-    devID = gpuGetMaxGflopsDeviceId();
+    devID = gpuGetMaxGflopsDeviceId();  // 最高性能GPU
     checkCudaErrors(cudaSetDevice(devID));
     int major = 0, minor = 0;
     checkCudaErrors(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, devID));

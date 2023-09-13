@@ -93,9 +93,15 @@
 #endif
 
 // CUDA Utility Helper Functions
+
+/// @brief 移除字符串开头连续的指定分隔符
+/// @param delimiter 指定分隔符
+/// @param string 目标字符串
+/// @return 移除分隔符后的字符串起始位置
 inline int stringRemoveDelimiter(char delimiter, const char *string) {
   int string_start = 0;
 
+  // 跳过所有的指定分隔符
   while (string[string_start] == delimiter) {
     string_start++;
   }
@@ -124,21 +130,29 @@ inline int getFileExtension(char *filename, char **extension) {
   return string_length;
 }
 
+/// @brief 命令行参数中检查是否存在指定的选项字符串
+/// @param argc 命令行参数个数
+/// @param argv 命令行参数列表
+/// @param string_ref 选项字符串
+/// @return 是否找到该选项字符串
 inline bool checkCmdLineFlag(const int argc, const char **argv,
                              const char *string_ref) {
-  bool bFound = false;
+  bool bFound = false;  // 是否找到了指定的字符串
 
   if (argc >= 1) {
     for (int i = 1; i < argc; i++) {
       int string_start = stringRemoveDelimiter('-', argv[i]);
       const char *string_argv = &argv[i][string_start];
 
+      // '='后的字符指针
       const char *equal_pos = strchr(string_argv, '=');
+      // 选项字符串的长度
       int argv_length = static_cast<int>(
           equal_pos == 0 ? strlen(string_argv) : equal_pos - string_argv);
 
       int length = static_cast<int>(strlen(string_ref));
 
+      // 字符串比较结果为相等(不区分大小写)则找到该选项
       if (length == argv_length &&
           !STRNCASECMP(string_argv, string_ref, length)) {
         bFound = true;
@@ -177,6 +191,11 @@ inline bool getCmdLineArgumentValue(const int argc, const char **argv,
   return bFound;
 }
 
+/// @brief 获取命令行参数整数值
+/// @param argc 命令行参数个数
+/// @param argv 命令行参数列表
+/// @param string_ref 命令行参数选项字符串
+/// @return 参数对应的整数值
 inline int getCmdLineArgumentInt(const int argc, const char **argv,
                                  const char *string_ref) {
   bool bFound = false;
@@ -188,7 +207,9 @@ inline int getCmdLineArgumentInt(const int argc, const char **argv,
       const char *string_argv = &argv[i][string_start];
       int length = static_cast<int>(strlen(string_ref));
 
-      if (!STRNCASECMP(string_argv, string_ref, length)) {
+      // 字符串是否匹配
+      if (!STRNCASECMP(string_argv, string_ref, length)) {  
+        // 判断参数是否有值
         if (length + 1 <= static_cast<int>(strlen(string_argv))) {
           int auto_inc = (string_argv[length] == '=') ? 1 : 0;
           value = atoi(&string_argv[length + auto_inc]);

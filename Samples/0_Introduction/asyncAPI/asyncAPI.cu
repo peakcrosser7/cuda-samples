@@ -45,6 +45,9 @@
 #include <helper_cuda.h>
 #include <helper_functions.h>  // helper utility functions
 
+/// @brief 自增
+/// @param g_data 数组
+/// @param inc_value 自增值
 __global__ void increment_kernel(int *g_data, int inc_value) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   g_data[idx] = g_data[idx] + inc_value;
@@ -79,7 +82,13 @@ int main(int argc, char *argv[]) {
 
   // allocate host memory
   int *a = 0;
+  // 分配CUDA用页锁定内存
+  // 注:
+  // * 经测试,异步传输仅对cudaMallocHost分配的内存有效,
+  //   new和malloc均不能达到异步传输的效果
+  // * 经测试,cudaMallocHost可分配内存大小接近主机内存
   checkCudaErrors(cudaMallocHost((void **)&a, nbytes));
+  // a = new int[nbytes/sizeof(int)];
   memset(a, 0, nbytes);
 
   // allocate device memory
@@ -106,10 +115,14 @@ int main(int argc, char *argv[]) {
   // asynchronously issue work to the GPU (all to stream 0)
   checkCudaErrors(cudaProfilerStart());
   sdkStartTimer(&timer);
+  // 对0号流记录时间
   cudaEventRecord(start, 0);
+
+  // 异步内存拷贝
   cudaMemcpyAsync(d_a, a, nbytes, cudaMemcpyHostToDevice, 0);
   increment_kernel<<<blocks, threads, 0, 0>>>(d_a, value);
   cudaMemcpyAsync(a, d_a, nbytes, cudaMemcpyDeviceToHost, 0);
+
   cudaEventRecord(stop, 0);
   sdkStopTimer(&timer);
   checkCudaErrors(cudaProfilerStop());
@@ -117,6 +130,7 @@ int main(int argc, char *argv[]) {
   // have CPU do some work while waiting for stage 1 to finish
   unsigned long int counter = 0;
 
+  // 等待stop事件完成
   while (cudaEventQuery(stop) == cudaErrorNotReady) {
     counter++;
   }
@@ -136,6 +150,7 @@ int main(int argc, char *argv[]) {
   checkCudaErrors(cudaEventDestroy(start));
   checkCudaErrors(cudaEventDestroy(stop));
   checkCudaErrors(cudaFreeHost(a));
+  // delete[] a;
   checkCudaErrors(cudaFree(d_a));
 
   exit(bFinalResults ? EXIT_SUCCESS : EXIT_FAILURE);
