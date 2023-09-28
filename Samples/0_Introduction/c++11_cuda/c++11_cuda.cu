@@ -43,6 +43,7 @@ using namespace util::lang;
 template <typename T>
 using step_range = typename range_proxy<T>::step_range_proxy;
 
+/// @brief 构造grid跨度范围迭代器
 template <typename T>
 __device__ step_range<T> grid_stride_range(T begin, T end) {
   begin += blockDim.x * blockIdx.x + threadIdx.x;
@@ -50,8 +51,14 @@ __device__ step_range<T> grid_stride_range(T begin, T end) {
 }
 /////////////////////////////////////////////////////////////////
 
+/// 判断符合要求的数据个数
+/// @param[out] count 符合要求的数据数
+/// @param data 数据
+/// @param n 数据大小
+/// @param p 判断算子
 template <typename T, typename Predicate>
 __device__ void count_if(int *count, T *data, int n, Predicate p) {
+  // grid维度遍历
   for (auto i : grid_stride_range(0, n)) {
     if (p(data[i])) atomicAdd(count, 1);
   }
@@ -60,6 +67,11 @@ __device__ void count_if(int *count, T *data, int n, Predicate p) {
 // Use count_if with a lambda function that searches for x, y, z or w
 // Note the use of range-based for loop and initializer_list inside the functor
 // We use auto so we don't have to know the type of the functor or array
+
+/// @brief 统计xyzw字频
+/// @param[out] count 判断符合要求的字符数
+/// @param text 文本内存
+/// @param n 文本长度
 __global__ void xyzw_frequency(int *count, char *text, int n) {
   const char letters[]{'x', 'y', 'z', 'w'};
 
@@ -70,6 +82,10 @@ __global__ void xyzw_frequency(int *count, char *text, int n) {
   });
 }
 
+/// @brief 基于thrust统计xyzw字频
+/// @param[out] count 判断符合要求的字符数
+/// @param text 文本内存
+/// @param n 文本长度
 __global__ void xyzw_frequency_thrust_device(int *count, char *text, int n) {
   const char letters[]{'x', 'y', 'z', 'w'};
   *count = thrust::count_if(thrust::device, text, text + n, [=](char c) {

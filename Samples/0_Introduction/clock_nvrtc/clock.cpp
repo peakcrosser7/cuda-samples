@@ -88,11 +88,13 @@ int main(int argc, char **argv) {
   size_t cubinSize;
 
   kernel_file = sdkFindFilePath("clock_kernel.cu", argv[0]);
+  // 运行时编译
   compileFileToCUBIN(kernel_file, argc, argv, &cubin, &cubinSize, 0);
 
   CUmodule module = loadCUBIN(cubin, argc, argv);
   CUfunction kernel_addr;
 
+  // `cuModuleGetFunction()`:从模块中提取指定函数句柄
   checkCudaErrors(cuModuleGetFunction(&kernel_addr, module, "timedReduction"));
 
   dim3 cudaBlockSize(NUM_THREADS, 1, 1);
@@ -106,6 +108,7 @@ int main(int argc, char **argv) {
 
   void *arr[] = {(void *)&dinput, (void *)&doutput, (void *)&dtimer};
 
+  // `cuLaunchKernel()`:启动CUDA函数或CUDA内核
   checkCudaErrors(cuLaunchKernel(
       kernel_addr, cudaGridSize.x, cudaGridSize.y,
       cudaGridSize.z,                                    /* grid dim */
@@ -114,6 +117,7 @@ int main(int argc, char **argv) {
       &arr[0],                            /* arguments */
       0));
 
+  // `cuCtxSynchronize()`:CUDA上下文同步,直到设备完成所有计算
   checkCudaErrors(cuCtxSynchronize());
   checkCudaErrors(
       cuMemcpyDtoH(timer, dtimer, sizeof(clock_t) * NUM_BLOCKS * 2));

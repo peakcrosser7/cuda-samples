@@ -843,7 +843,7 @@ inline int gpuGetMaxGflopsDeviceId() {
             _ConvertSMVer2Cores(major,  minor);
       }
       int multiProcessorCount = 0, clockRate = 0;
-      // GPU的 SM 数
+      // GPU的SM数
       checkCudaErrors(cudaDeviceGetAttribute(&multiProcessorCount, cudaDevAttrMultiProcessorCount, current_device));
       // GPU的峰值时钟频率(khz)
       cudaError_t result = cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device);
@@ -884,7 +884,7 @@ inline int gpuGetMaxGflopsDeviceId() {
 }
 
 /// @brief Initialization code to find the best CUDA Device
-///        初始化代码并找到最佳CUDA设备
+///        使用命令行指定CUDA设备否则选用最高性能CUDA设备
 /// @param argc 命令行参数个数
 /// @param argv 命令行参数列表
 /// @return 使用的GPU设备ID

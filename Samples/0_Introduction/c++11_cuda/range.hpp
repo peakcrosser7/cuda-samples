@@ -43,6 +43,8 @@ namespace lang {
 
 namespace detail {
 
+/// @brief 范围迭代器基类
+/// @tparam T 数据指针类型
 template <typename T>
 struct range_iter_base : std::iterator<std::input_iterator_tag, T> {
   DEVICE_CALLABLE
@@ -78,11 +80,14 @@ struct range_iter_base : std::iterator<std::input_iterator_tag, T> {
   }
 
  protected:
+  /// @brief 当前迭代器的指针
   T current;
 };
 
 }  // namespace detail
 
+/// @brief 范围迭代器代理
+/// @tparam T 数据指针类型
 template <typename T>
 struct range_proxy {
   struct iter : detail::range_iter_base<T> {
@@ -121,6 +126,7 @@ struct range_proxy {
       bool operator!=(iter const& other) const { return !(*this == other); }
 
      private:
+      /// @brief 迭代器步幅
       T step;
     };
 
@@ -142,6 +148,7 @@ struct range_proxy {
   DEVICE_CALLABLE
   range_proxy(T begin, T end) : begin_(begin), end_(end) {}
 
+  /// @brief 构造步幅范围迭代器
   DEVICE_CALLABLE
   step_range_proxy step(T step) { return {*begin_, *end_, step}; }
 
@@ -229,6 +236,7 @@ struct infinite_range_proxy {
   iter begin_;
 };
 
+/// @brief 构造范围迭代器
 template <typename T>
 DEVICE_CALLABLE range_proxy<T> range(T begin, T end) {
   return {begin, end};

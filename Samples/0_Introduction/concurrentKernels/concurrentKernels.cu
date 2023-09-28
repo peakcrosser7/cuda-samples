@@ -40,8 +40,10 @@ namespace cg = cooperative_groups;
 #include <helper_cuda.h>
 #include <helper_functions.h>
 
-// This is a kernel that does no real work but runs at least for a specified
-// number of clocks
+/// @brief This is a kernel that does no real work but runs at least for a specified
+///         number of clocks
+/// @param[out] d_o 实际执行时钟数
+/// @param clock_count 要求执行的时钟数
 __global__ void clock_block(clock_t *d_o, clock_t clock_count) {
   unsigned int start_clock = (unsigned int)clock();
 
@@ -67,20 +69,26 @@ __global__ void clock_block(clock_t *d_o, clock_t clock_count) {
 }
 
 // Single warp reduction kernel
+
+/// @brief N个时钟数据求和
+/// @param[in,out] d_clocks 时钟数数据指针,d_clocks[0]最终记录求和结果
+/// @param N 数据数目
+/// <<<NBLOCLKS,NTHREADS>>>: 1,32
 __global__ void sum(clock_t *d_clocks, int N) {
   // Handle to thread block group
-  cg::thread_block cta = cg::this_thread_block();
+  cg::thread_block cta = cg::this_thread_block(); // 当前线程块
   __shared__ clock_t s_clocks[32];
 
-  clock_t my_sum = 0;
+  clock_t my_sum = 0; // 线程局部和
 
   for (int i = threadIdx.x; i < N; i += blockDim.x) {
     my_sum += d_clocks[i];
   }
 
   s_clocks[threadIdx.x] = my_sum;
-  cg::sync(cta);
+  cg::sync(cta);  // 线程块同步,等价于__syncthreads()
 
+  // 线程块内归约求和
   for (int i = 16; i > 0; i /= 2) {
     if (threadIdx.x < i) {
       s_clocks[threadIdx.x] += s_clocks[threadIdx.x + i];
@@ -113,6 +121,7 @@ int main(int argc, char **argv) {
   cuda_device = findCudaDevice(argc, (const char **)argv);
 
   cudaDeviceProp deviceProp;
+  // `cudaGetDevice()`:获取当前使用的CUDA设备
   checkCudaErrors(cudaGetDevice(&cuda_device));
 
   checkCudaErrors(cudaGetDeviceProperties(&deviceProp, cuda_device));
@@ -137,6 +146,7 @@ int main(int argc, char **argv) {
   cudaStream_t *streams =
       (cudaStream_t *)malloc(nstreams * sizeof(cudaStream_t));
 
+  // 创建流
   for (int i = 0; i < nstreams; i++) {
     checkCudaErrors(cudaStreamCreate(&(streams[i])));
   }
@@ -152,6 +162,7 @@ int main(int argc, char **argv) {
   cudaEvent_t *kernelEvent;
   kernelEvent = (cudaEvent_t *)malloc(nkernels * sizeof(cudaEvent_t));
 
+  // 创建流且关闭计时以避免引入全局同步
   for (int i = 0; i < nkernels; i++) {
     checkCudaErrors(
         cudaEventCreateWithFlags(&(kernelEvent[i]), cudaEventDisableTiming));
@@ -184,15 +195,18 @@ int main(int argc, char **argv) {
   // queue a sum kernel and a copy back to host in the last stream.
   // the commands in this stream get dispatched as soon as all the kernel events
   // have been recorded
+  // 求每个CUDA流对应的用时之和
   sum<<<1, 32, 0, streams[nstreams - 1]>>>(d_a, nkernels);
   checkCudaErrors(cudaMemcpyAsync(
       a, d_a, sizeof(clock_t), cudaMemcpyDeviceToHost, streams[nstreams - 1]));
 
   // at this point the CPU has dispatched all work for the GPU and can continue
   // processing other tasks in parallel
+  // 上述CUDA代码没有设备同步,因此CPU可以异步执行后续代码
 
   // in this sample we just wait until the GPU is done
   checkCudaErrors(cudaEventRecord(stop_event, 0));
+  // 等待事件(GPU代码)完成
   checkCudaErrors(cudaEventSynchronize(stop_event));
   checkCudaErrors(cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
 
@@ -202,6 +216,7 @@ int main(int argc, char **argv) {
          nkernels, kernel_time / 1000.0f);
   printf("Measured time for sample = %.3fs\n", elapsed_time / 1000.0f);
 
+  // 判断多CUDA执行时间之和是否大于时间用时
   bool bTestResult = (a[0] > total_clocks);
 
   // release resources

@@ -290,6 +290,9 @@ static char __CudaLibName[] = "libcuda.so.1";
 
 typedef void *CUDADRIVER;
 
+/// @brief 加载CUDA链接库
+/// @param[out] pInstance 链接库句柄
+/// @return 是否成功
 static CUresult LOAD_LIBRARY(CUDADRIVER *pInstance)
 {
     *pInstance = dlopen(__CudaLibName, RTLD_NOW);
@@ -303,6 +306,7 @@ static CUresult LOAD_LIBRARY(CUDADRIVER *pInstance)
     return CUDA_SUCCESS;
 }
 
+// 在动态链接库中找到名称为name的函数并返回alias指针
 #define GET_PROC_EX(name, alias, required)                              \
     alias = (t##name *)dlsym(CudaDrvLib, #name);                        \
     if (alias == NULL && required) {                                    \
@@ -331,6 +335,7 @@ static CUresult LOAD_LIBRARY(CUDADRIVER *pInstance)
 #error unsupported platform
 #endif
 
+// 调用call,失败则返回
 #define CHECKED_CALL(call)              \
     do {                                \
         CUresult result = (call);       \
@@ -345,6 +350,10 @@ static CUresult LOAD_LIBRARY(CUDADRIVER *pInstance)
 #define GET_PROC_V2(name)       GET_PROC_EX_V2(name,name,1)
 #define GET_PROC_V3(name)       GET_PROC_EX_V3(name,name,1)
 
+/// @brief 运行时CUDA初始化
+/// @param Flags 
+/// @param cudaVersion 
+/// @return 
 CUresult CUDAAPI cuInit(unsigned int Flags, int cudaVersion)
 {
     CUDADRIVER CudaDrvLib;

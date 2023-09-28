@@ -48,6 +48,9 @@
 // This kernel computes a standard parallel reduction and evaluates the
 // time it takes to do that for each block. The timing results are stored
 // in device memory.
+/// @param input 输入数据
+/// @param[out] output 输出数据(每个block中数据最小值)
+/// @param[out] timer 计时器数组(记录起始和终止时间)
 __global__ static void timedReduction(const float *input, float *output,
                                       clock_t *timer) {
   // __shared__ float shared[2 * blockDim.x];
@@ -56,8 +59,10 @@ __global__ static void timedReduction(const float *input, float *output,
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
 
+  // 当前时间
   if (tid == 0) timer[bid] = clock();
 
+  // 共享内存各block独立
   // Copy input.
   shared[tid] = input[tid];
   shared[tid + blockDim.x] = input[tid + blockDim.x];
@@ -66,6 +71,9 @@ __global__ static void timedReduction(const float *input, float *output,
   for (int d = blockDim.x; d > 0; d /= 2) {
     __syncthreads();
 
+    // 每次归约范围减半,
+    // 即有效的比对数量为:blockDim.x -> blockDim.x/2 -> ... -> 2 -> 1
+    // 索引大于d的部分不会比较
     if (tid < d) {
       float f0 = shared[tid];
       float f1 = shared[tid + d];
@@ -130,6 +138,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMemcpy(dinput, input, sizeof(float) * NUM_THREADS * 2,
                              cudaMemcpyHostToDevice));
 
+  // 计算每个block的最小用时
   timedReduction<<<NUM_BLOCKS, NUM_THREADS, sizeof(float) * 2 * NUM_THREADS>>>(
       dinput, doutput, dtimer);
 

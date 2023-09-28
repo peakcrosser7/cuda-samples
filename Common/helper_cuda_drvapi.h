@@ -80,6 +80,10 @@ inline void __checkCudaErrors(CUresult err, const char *file, const int line) {
 #endif
 
 // This function wraps the CUDA Driver API into a template function
+/// @brief 获取CUDA设备属性
+/// @param[out] attribute 属性值
+/// @param device_attribute 属性名称
+/// @param device 设备ID
 template <class T>
 inline void getCudaAttribute(T *attribute, CUdevice_attribute device_attribute,
                              int device) {
@@ -88,6 +92,11 @@ inline void getCudaAttribute(T *attribute, CUdevice_attribute device_attribute,
 #endif
 
 // Beginning of GPU Architecture definitions
+
+/// @brief 将CUDA的SM版本转换为SM的内核数
+/// @param major 主版本
+/// @param minor 副版本
+/// @return SM的内核数
 inline int _ConvertSMVer2CoresDRV(int major, int minor) {
   // Defines for GPU Architecture types (using the SM version to determine the #
   // of cores per SM
@@ -137,7 +146,10 @@ inline int _ConvertSMVer2CoresDRV(int major, int minor) {
 // end of GPU Architecture definitions
 
 #ifdef __cuda_cuda_h__
-// General GPU Device CUDA Initialization
+/// @brief General GPU Device CUDA Initialization
+/// @param ARGC 命令行参数个数
+/// @param ARGV 命令行参数列表
+/// @return 初始化的设备ID
 inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
   int cuDevice = 0;
   int deviceCount = 0;
@@ -150,6 +162,7 @@ inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
     exit(EXIT_FAILURE);
   }
 
+  // 命令行中设置的设备ID
   int dev = 0;
   dev = getCmdLineArgumentInt(ARGC, (const char **)ARGV, "device=");
 
@@ -168,6 +181,7 @@ inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
     return -dev;
   }
 
+  // 获取设备句柄
   checkCudaErrors(cuDeviceGet(&cuDevice, dev));
   char name[100];
   checkCudaErrors(cuDeviceGetName(name, 100, cuDevice));
@@ -189,7 +203,8 @@ inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
   return dev;
 }
 
-// This function returns the best GPU based on performance
+/// @brief This function returns the best GPU based on performance
+/// @return 性能最佳的设备ID
 inline int gpuGetMaxGflopsDeviceIdDRV() {
   CUdevice current_device = 0;
   CUdevice max_perf_device = 0;
@@ -261,7 +276,10 @@ inline int gpuGetMaxGflopsDeviceIdDRV() {
   return max_perf_device;
 }
 
-// General initialization call to pick the best CUDA Device
+/// @brief General initialization call to pick the best CUDA Device
+/// @param argc 命令行参数个数
+/// @param argv 命令行参数列表
+/// @return 选择的CUDA设备句柄
 inline CUdevice findCudaDeviceDRV(int argc, const char **argv) {
   CUdevice cuDevice;
   int devID = 0;

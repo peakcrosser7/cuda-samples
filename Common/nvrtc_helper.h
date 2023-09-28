@@ -47,6 +47,13 @@
     }                                                           \
   } while (0)
 
+/// @brief 运行时编译CUDA源文件为cubin
+/// @param filename cuda源文件
+/// @param argc 命令行参数个数
+/// @param argv 命令行参数列表
+/// @param cubinResult 编译后的CUDA二进制
+/// @param cubinResultSize 编译后的CUDA二进制大小
+/// @param requiresCGheaders 是否需要cooperative_groups.h头文件
 void compileFileToCUBIN(char *filename, int argc, char **argv, char **cubinResult,
                       size_t *cubinResultSize, int requiresCGheaders) {
   if (!filename) {
@@ -63,6 +70,7 @@ void compileFileToCUBIN(char *filename, int argc, char **argv, char **cubinResul
   }
 
   std::streampos pos = inputFile.tellg();
+  // 文件大小
   size_t inputSize = (size_t)pos;
   char *memBlock = new char[inputSize + 1];
 
@@ -147,16 +155,19 @@ void compileFileToCUBIN(char *filename, int argc, char **argv, char **cubinResul
 
   // compile
   nvrtcProgram prog;
+  // `nvrtcCreateProgram()`:使用给定的输入参数创建nvrtcProgram的实例,并使用它设置输出参数prog
   NVRTC_SAFE_CALL("nvrtcCreateProgram",
                   nvrtcCreateProgram(&prog, memBlock, filename, 0, NULL, NULL));
-
+  // `nvrtcCompileProgram()`:编译指定程序
   nvrtcResult res = nvrtcCompileProgram(prog, numCompileOptions, compileParams);
 
   // dump log
   size_t logSize;
+  // `nvrtcGetProgramLogSize()`:将logSizeRet设置为上次编译prog时生成的日志的大小(包括后面的NULL)
   NVRTC_SAFE_CALL("nvrtcGetProgramLogSize",
                   nvrtcGetProgramLogSize(prog, &logSize));
   char *log = reinterpret_cast<char *>(malloc(sizeof(char) * logSize + 1));
+  // `nvrtcGetProgramLog()`:将上次编译prog生成的日志存储在log指向的内存中
   NVRTC_SAFE_CALL("nvrtcGetProgramLog", nvrtcGetProgramLog(prog, log));
   log[logSize] = '\x0';
 
@@ -171,8 +182,10 @@ void compileFileToCUBIN(char *filename, int argc, char **argv, char **cubinResul
   NVRTC_SAFE_CALL("nvrtcCompileProgram", res);
 
   size_t codeSize;
+  // `nvrtcGetCUBINSize()`:将cubinSizeRet的值设置为上一次编译prog生成的CUDA二进制的大小
   NVRTC_SAFE_CALL("nvrtcGetCUBINSize", nvrtcGetCUBINSize(prog, &codeSize));
   char *code = new char[codeSize];
+  // `nvrtcGetCUBIN()`:将上次编译prog生成的CUDA二进制存储在cubin指向的内存中。
   NVRTC_SAFE_CALL("nvrtcGetCUBIN", nvrtcGetCUBIN(prog, code));
   *cubinResult = code;
   *cubinResultSize = codeSize;
@@ -182,6 +195,11 @@ void compileFileToCUBIN(char *filename, int argc, char **argv, char **cubinResul
   }
 }
 
+/// @brief 加载cubin
+/// @param cubin CUDA二进制数据
+/// @param argc 命令行参数个数
+/// @param argv 命令行参数列表
+/// @return 加载的CUDA模块
 CUmodule loadCUBIN(char *cubin, int argc, char **argv) {
   CUmodule module;
   CUcontext context;
@@ -199,9 +217,12 @@ CUmodule loadCUBIN(char *cubin, int argc, char **argv) {
   checkCudaErrors(cuDeviceGetName(deviceName, 256, cuDevice));
   printf("> GPU Device has SM %d.%d compute capability\n", major, minor);
 
+  // `cuInit()`:初始化CUDA驱动API
   checkCudaErrors(cuInit(0));
+  // `cuCtxCreate()`:创建CUDA上下文
   checkCudaErrors(cuCtxCreate(&context, 0, cuDevice));
 
+  // `cuModuleLoadData()`:加载模块数据
   checkCudaErrors(cuModuleLoadData(&module, cubin));
   free(cubin);
 
